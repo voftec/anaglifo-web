@@ -51,6 +51,7 @@ Todo se procesa en tu navegador — la foto nunca sale de tu dispositivo.</p>
 
   <div class="row">
     <button id="go" disabled>Generar 3D</button>
+    <button id="wig" class="sec" disabled>Wiggle 3D</button>
     <button id="dl" class="sec" disabled>Descargar PNG</button>
     <div id="bar"><div></div></div>
     <span id="status"></span>
@@ -60,8 +61,7 @@ Todo se procesa en tu navegador — la foto nunca sale de tu dispositivo.</p>
     <label class="sl">Profundidad <input id="strength" type="range" min="0" max="100" value="35"><output id="ostrength">35%</output></label>
     <label class="sl">Convergencia <input id="conv" type="range" min="0" max="100" value="50"><output id="oconv">50</output></label>
     <label class="sl">Suavizado <input id="smooth" type="range" min="0" max="100" value="50"><output id="osmooth">50</output></label>
-    <label class="sl">Relieve <input id="relief" type="range" min="0" max="100" value="35"><output id="orelief">35</output></label>
-    <div class="hint">Profundidad = separación entre los dos ojos. Relieve = cuánto las sombras y brillos de la foto se vuelven profundidad fina (piel, texturas). Tocá la foto para elegir qué objeto sale de la pantalla.</div>
+    <div class="hint">Profundidad = separación entre los dos ojos. Tocá la foto para elegir qué objeto sale de la pantalla. Wiggle alterna las dos vistas para ver el 3D sin lentes.</div>
   </div>
 
   <div id="stage"><canvas id="out"></canvas><div id="focus"></div></div>

@@ -15,7 +15,7 @@ let photoW = 0, photoH = 0;
 let estimator = null;
 let modelPromise = null;
 let focus = null; // {fx, fy} fracción 0..1 del punto de foco elegido por el usuario
-let reliefMap = null; // high-pass de luminancia: las sombras/brillos como micro-relieve
+let wigL = null, wigR = null, wigTimer = null, wigFrame = false;
 
 // ---------- model ----------
 async function loadModel() {
@@ -186,7 +186,6 @@ async function convert() {
   const strength = $('strength').value / 100;      // 0..1
   const conv = $('conv').value / 100;              // convergence point 0..1
   const smooth = $('smooth').value / 100;
-  const relief = $('relief').value / 100;
   if (!depth) {
     status('Analizando profundidad…');
     depth = await estimateDepth(imgBitmap, photoW, photoH);
@@ -206,19 +205,6 @@ async function convert() {
   const sigma = photoW * (0.004 + smooth * 0.024);
   gaussBlur(dn, photoW, photoH, sigma);
 
-  // relieve por sombreado: luminancia high-pass como micro-profundidad
-  if (!reliefMap) {
-    reliefMap = new Float32Array(photoW * photoH);
-    for (let i = 0; i < photoW * photoH; i++)
-      reliefMap[i] = (src[i*4]*0.299 + src[i*4+1]*0.587 + src[i*4+2]*0.114) / 255;
-    const blur = Float32Array.from(reliefMap);
-    gaussBlur(blur, photoW, photoH, Math.max(4, photoW / 90));
-    for (let i = 0; i < reliefMap.length; i++) reliefMap[i] -= blur[i];
-  }
-  const reliefAmt = relief * 0.22;
-  for (let i = 0; i < dn.length; i++)
-    dn[i] = Math.min(1.15, dn[i] + reliefAmt * reliefMap[i]);
-
   const spx = (0.005 + strength * 0.045) * photoW;
   const p5 = quantile(dn, 0.05), p95 = quantile(dn, 0.95);
   const span = Math.max(p95 - p5, 1e-6);
@@ -234,12 +220,20 @@ async function convert() {
   const right = renderRight(src, dn, photoW, photoH, spx, convShift, span);
 
   const ana = dubois(src, right, photoW * photoH);
+  anaglyphPx = new ImageData(ana, photoW, photoH);
+  stopWiggle();
   const out = $('out');
   out.width = photoW; out.height = photoH;
   out.getContext('2d').putImageData(new ImageData(ana, photoW, photoH), 0, 0);
   out.style.display = 'block';
   $('glasses').style.display = 'block';
   $('dl').disabled = false;
+  $('wig').disabled = false;
+  // guardar las dos vistas para el modo wiggle
+  wigL = new ImageData(new Uint8ClampedArray(src), photoW, photoH);
+  wigR = new ImageData(right, photoW, photoH);
+  // ocultar el círculo de selección una vez aplicado el punto
+  if (focus) $('focus').style.display = 'none';
   status('Listo');
 }
 
@@ -258,7 +252,8 @@ async function loadFile(f) {
   photoW = Math.round(raw.width * s); photoH = Math.round(raw.height * s);
   imgBitmap = await createImageBitmap(raw, { resizeWidth: photoW, resizeHeight: photoH, resizeQuality: 'high' });
   depth = null;
-  reliefMap = null;
+  wigL = wigR = null;
+  stopWiggle();
   focus = null;
   $('focus').style.display = 'none';
   drop.innerHTML = `<b>${f.name}</b><br>${photoW}×${photoH} — listo para convertir`;
@@ -292,7 +287,7 @@ $('go').onclick = async () => {
 };
 
 let rerenderTimer = null;
-for (const id of ['strength', 'conv', 'smooth', 'relief']) {
+for (const id of ['strength', 'conv', 'smooth']) {
   $(id).oninput = () => {
     $('o' + id).textContent = $(id).value + (id === 'strength' ? '%' : '');
     if (!depth) return;
@@ -320,3 +315,23 @@ $('out').addEventListener('click', e => {
   status('Punto de foco marcado — regenerando…');
   if (depth && !busy) { clearTimeout(rerenderTimer); rerenderTimer = setTimeout(() => $('go').click(), 150); }
 });
+
+// wiggle: alterna las vistas izq/der para ver el 3D sin lentes
+function stopWiggle() {
+  if (wigTimer) { clearInterval(wigTimer); wigTimer = null; }
+  $('wig').textContent = 'Wiggle 3D';
+}
+$('wig').onclick = () => {
+  if (!wigL) return;
+  if (wigTimer) { stopWiggle(); showAnaglyph(); return; }
+  $('wig').textContent = 'Parar wiggle';
+  const ctx = $('out').getContext('2d');
+  wigTimer = setInterval(() => {
+    wigFrame = !wigFrame;
+    ctx.putImageData(wigFrame ? wigR : wigL, 0, 0);
+  }, 140);
+};
+let anaglyphPx = null;
+function showAnaglyph() {
+  if (anaglyphPx) $('out').getContext('2d').putImageData(anaglyphPx, 0, 0);
+}
