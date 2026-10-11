@@ -32,6 +32,10 @@
   #bar { height:6px; border-radius:3px; background:#262a35; overflow:hidden; flex:1; display:none; }
   #bar>div { height:100%; width:0%; background:var(--acc); transition:width .2s; }
   canvas { max-width:100%; border-radius:12px; margin-top:16px; display:none; }
+  #stage { position:relative; display:inline-block; max-width:100%; }
+  #focus { position:absolute; width:26px; height:26px; margin:-13px 0 0 -13px;
+           border:2px solid #fff; border-radius:50%; box-shadow:0 0 0 2px #4f8cff;
+           display:none; pointer-events:none; }
   .hint { font-size:12px; color:var(--mut); margin-top:8px; }
   a { color:var(--acc); }
 </style>
@@ -59,7 +63,8 @@ Todo se procesa en tu navegador — la foto nunca sale de tu dispositivo.</p>
     <div class="hint">Profundidad = separación entre los dos ojos. Convergencia = qué plano queda "en la pantalla" (los objetos más cercanos salen hacia vos). Suavizado corrige bordes dentados.</div>
   </div>
 
-  <canvas id="out"></canvas>
+  <div id="stage"><canvas id="out"></canvas><div id="focus"></div></div>
+  <div class="hint" id="pickhint" style="display:none">Tocá la foto para elegir el punto de foco: ese objeto queda "en la pantalla" y es el que más sale en 3D.</div>
   <div class="hint" id="glasses" style="display:none">Mirala con lentes rojo/cian (rojo en el ojo izquierdo).</div>
 </div>
 

@@ -14,6 +14,7 @@ let depth = null;       // Float32Array w*h, normalized 0..1 (near=1)
 let photoW = 0, photoH = 0;
 let estimator = null;
 let modelPromise = null;
+let focus = null; // {fx, fy} fracción 0..1 del punto de foco elegido por el usuario
 
 // ---------- model ----------
 async function loadModel() {
@@ -206,8 +207,12 @@ async function convert() {
   const spx = (0.005 + strength * 0.045) * photoW;
   const p5 = quantile(dn, 0.05), p95 = quantile(dn, 0.95);
   const span = Math.max(p95 - p5, 1e-6);
-  // conv slider: 0 = fondo en pantalla (todo sale), 1 = frente en pantalla
-  const convShift = p5 + conv * span;
+  // si el usuario picó un punto de foco, su profundidad define el plano cero;
+  // si no, el slider de convergencia decide
+  const convShift = focus
+    ? dn[Math.min(photoH - 1, Math.floor(focus.fy * photoH)) * photoW
+        + Math.min(photoW - 1, Math.floor(focus.fx * photoW))]
+    : p5 + conv * span;
 
   status('Renderizando…');
   await new Promise(r => setTimeout(r)); // let UI breathe
@@ -238,11 +243,19 @@ async function loadFile(f) {
   photoW = Math.round(raw.width * s); photoH = Math.round(raw.height * s);
   imgBitmap = await createImageBitmap(raw, { resizeWidth: photoW, resizeHeight: photoH, resizeQuality: 'high' });
   depth = null;
+  focus = null;
+  $('focus').style.display = 'none';
   drop.innerHTML = `<b>${f.name}</b><br>${photoW}×${photoH} — listo para convertir`;
   $('go').disabled = false;
   $('dl').disabled = true;
   $('sliders').classList.add('on');
-  $('out').style.display = 'none';
+  // mostrar la foto para poder picar el punto de foco
+  const oc = $('out');
+  oc.width = photoW; oc.height = photoH;
+  oc.getContext('2d').drawImage(imgBitmap, 0, 0);
+  oc.style.display = 'block';
+  $('pickhint').style.display = 'block';
+  $('glasses').style.display = 'none';
   status('');
   // pre-load model in background
   loadModel().catch(e => status('Error modelo: ' + e.message));
@@ -273,3 +286,16 @@ $('dl').onclick = () => {
   a.download = 'anaglifo.png';
   a.click();
 };
+
+// picker de punto de foco: click/tap sobre la imagen define el plano de mayor interés
+$('out').addEventListener('click', e => {
+  if (!imgBitmap) return;
+  const r = $('out').getBoundingClientRect();
+  focus = { fx: (e.clientX - r.left) / r.width, fy: (e.clientY - r.top) / r.height };
+  const f = $('focus');
+  f.style.display = 'block';
+  f.style.left = (focus.fx * 100) + '%';
+  f.style.top = (focus.fy * 100) + '%';
+  status('Punto de foco marcado — regenerando…');
+  if (depth && !busy) { clearTimeout(rerenderTimer); rerenderTimer = setTimeout(() => $('go').click(), 150); }
+});
