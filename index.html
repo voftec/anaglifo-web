@@ -60,11 +60,12 @@ Todo se procesa en tu navegador — la foto nunca sale de tu dispositivo.</p>
     <label class="sl">Profundidad <input id="strength" type="range" min="0" max="100" value="35"><output id="ostrength">35%</output></label>
     <label class="sl">Convergencia <input id="conv" type="range" min="0" max="100" value="50"><output id="oconv">50</output></label>
     <label class="sl">Suavizado <input id="smooth" type="range" min="0" max="100" value="50"><output id="osmooth">50</output></label>
-    <div class="hint">Profundidad = separación entre los dos ojos. Convergencia = qué plano queda "en la pantalla" (los objetos más cercanos salen hacia vos). Suavizado corrige bordes dentados.</div>
+    <label class="sl">Relieve <input id="relief" type="range" min="0" max="100" value="35"><output id="orelief">35</output></label>
+    <div class="hint">Profundidad = separación entre los dos ojos. Relieve = cuánto las sombras y brillos de la foto se vuelven profundidad fina (piel, texturas). Tocá la foto para elegir qué objeto sale de la pantalla.</div>
   </div>
 
   <div id="stage"><canvas id="out"></canvas><div id="focus"></div></div>
-  <div class="hint" id="pickhint" style="display:none">Tocá la foto para elegir el punto de foco: ese objeto queda "en la pantalla" y es el que más sale en 3D.</div>
+  <div class="hint" id="pickhint" style="display:none">Tocá la foto para elegir qué objeto SALE de la pantalla en 3D.</div>
   <div class="hint" id="glasses" style="display:none">Mirala con lentes rojo/cian (rojo en el ojo izquierdo).</div>
 </div>
 

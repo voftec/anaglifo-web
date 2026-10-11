@@ -15,6 +15,7 @@ let photoW = 0, photoH = 0;
 let estimator = null;
 let modelPromise = null;
 let focus = null; // {fx, fy} fracción 0..1 del punto de foco elegido por el usuario
+let reliefMap = null; // high-pass de luminancia: las sombras/brillos como micro-relieve
 
 // ---------- model ----------
 async function loadModel() {
@@ -185,10 +186,17 @@ async function convert() {
   const strength = $('strength').value / 100;      // 0..1
   const conv = $('conv').value / 100;              // convergence point 0..1
   const smooth = $('smooth').value / 100;
+  const relief = $('relief').value / 100;
   if (!depth) {
     status('Analizando profundidad…');
     depth = await estimateDepth(imgBitmap, photoW, photoH);
   }
+
+  const srcC = document.createElement('canvas');
+  srcC.width = photoW; srcC.height = photoH;
+  const sctx = srcC.getContext('2d');
+  sctx.drawImage(imgBitmap, 0, 0, photoW, photoH);
+  const src = sctx.getImageData(0, 0, photoW, photoH).data;
 
   let dn = median3(depth, photoW, photoH);
   // robust normalize 0..1
@@ -198,20 +206,27 @@ async function convert() {
   const sigma = photoW * (0.004 + smooth * 0.024);
   gaussBlur(dn, photoW, photoH, sigma);
 
-  const srcC = document.createElement('canvas');
-  srcC.width = photoW; srcC.height = photoH;
-  const sctx = srcC.getContext('2d');
-  sctx.drawImage(imgBitmap, 0, 0, photoW, photoH);
-  const src = sctx.getImageData(0, 0, photoW, photoH).data;
+  // relieve por sombreado: luminancia high-pass como micro-profundidad
+  if (!reliefMap) {
+    reliefMap = new Float32Array(photoW * photoH);
+    for (let i = 0; i < photoW * photoH; i++)
+      reliefMap[i] = (src[i*4]*0.299 + src[i*4+1]*0.587 + src[i*4+2]*0.114) / 255;
+    const blur = Float32Array.from(reliefMap);
+    gaussBlur(blur, photoW, photoH, Math.max(4, photoW / 90));
+    for (let i = 0; i < reliefMap.length; i++) reliefMap[i] -= blur[i];
+  }
+  const reliefAmt = relief * 0.22;
+  for (let i = 0; i < dn.length; i++)
+    dn[i] = Math.min(1.15, dn[i] + reliefAmt * reliefMap[i]);
 
   const spx = (0.005 + strength * 0.045) * photoW;
   const p5 = quantile(dn, 0.05), p95 = quantile(dn, 0.95);
   const span = Math.max(p95 - p5, 1e-6);
-  // si el usuario picó un punto de foco, su profundidad define el plano cero;
-  // si no, el slider de convergencia decide
+  // si el usuario picó un punto: ese objeto sale HACIA el espectador
+  // (disp negativa = pop-out) y el resto queda detrás de la pantalla
   const convShift = focus
     ? dn[Math.min(photoH - 1, Math.floor(focus.fy * photoH)) * photoW
-        + Math.min(photoW - 1, Math.floor(focus.fx * photoW))]
+        + Math.min(photoW - 1, Math.floor(focus.fx * photoW))] - 0.55 * span
     : p5 + conv * span;
 
   status('Renderizando…');
@@ -243,6 +258,7 @@ async function loadFile(f) {
   photoW = Math.round(raw.width * s); photoH = Math.round(raw.height * s);
   imgBitmap = await createImageBitmap(raw, { resizeWidth: photoW, resizeHeight: photoH, resizeQuality: 'high' });
   depth = null;
+  reliefMap = null;
   focus = null;
   $('focus').style.display = 'none';
   drop.innerHTML = `<b>${f.name}</b><br>${photoW}×${photoH} — listo para convertir`;
@@ -262,21 +278,26 @@ async function loadFile(f) {
 }
 
 let busy = false;
+let pendingRender = false;
 $('go').onclick = async () => {
-  if (!imgBitmap || busy) return;
+  if (!imgBitmap) return;
+  if (busy) { pendingRender = true; return; }
   busy = true; $('go').disabled = true;
-  try { await convert(); }
-  catch (e) { status('Error: ' + e.message); console.error(e); }
+  do {
+    pendingRender = false;
+    try { await convert(); }
+    catch (e) { status('Error: ' + e.message); console.error(e); }
+  } while (pendingRender);
   busy = false; $('go').disabled = false;
 };
 
 let rerenderTimer = null;
-for (const id of ['strength', 'conv', 'smooth']) {
+for (const id of ['strength', 'conv', 'smooth', 'relief']) {
   $(id).oninput = () => {
     $('o' + id).textContent = $(id).value + (id === 'strength' ? '%' : '');
-    if (!depth || busy) return;
+    if (!depth) return;
     clearTimeout(rerenderTimer);
-    rerenderTimer = setTimeout(() => $('go').click(), 250);
+    rerenderTimer = setTimeout(() => $('go').click(), 180);
   };
 }
 
