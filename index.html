@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anaglifo — tu foto en 3D</title>
+<style>
+  :root { --bg:#0e0f13; --card:#191b22; --txt:#e8e9ee; --mut:#8a8f9e; --acc:#4f8cff; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system, "SF Pro", system-ui, sans-serif;
+         background:var(--bg); color:var(--txt); min-height:100vh;
+         display:flex; flex-direction:column; align-items:center; padding:28px 16px; }
+  h1 { font-size:26px; margin:0 0 4px; letter-spacing:.3px; }
+  .sub { color:var(--mut); font-size:14px; margin-bottom:20px; text-align:center; max-width:560px; }
+  .card { background:var(--card); border-radius:16px; padding:18px; width:min(960px,100%); }
+  #drop { border:2px dashed #3a3f4d; border-radius:14px; padding:42px 16px; text-align:center;
+          color:var(--mut); cursor:pointer; transition:.15s; }
+  #drop.over { border-color:var(--acc); color:var(--txt); background:#1d2230; }
+  #drop b { color:var(--txt); }
+  .row { display:flex; gap:14px; align-items:center; margin-top:14px; flex-wrap:wrap; }
+  .sliders { display:none; margin-top:16px; }
+  .sliders.on { display:block; }
+  label.sl { display:grid; grid-template-columns:120px 1fr 56px; gap:10px;
+             align-items:center; font-size:13px; margin:8px 0; }
+  input[type=range]{ width:100%; accent-color:var(--acc); }
+  output { color:var(--mut); font-variant-numeric:tabular-nums; text-align:right; }
+  button { background:var(--acc); color:#fff; border:0; border-radius:10px;
+           padding:10px 18px; font-size:15px; cursor:pointer; }
+  button.sec { background:#2a2e3a; }
+  button:disabled { opacity:.45; cursor:default; }
+  #status { font-size:13px; color:var(--mut); }
+  #bar { height:6px; border-radius:3px; background:#262a35; overflow:hidden; flex:1; display:none; }
+  #bar>div { height:100%; width:0%; background:var(--acc); transition:width .2s; }
+  canvas { max-width:100%; border-radius:12px; margin-top:16px; display:none; }
+  .hint { font-size:12px; color:var(--mut); margin-top:8px; }
+  a { color:var(--acc); }
+</style>
+</head>
+<body>
+<h1>Anaglifo</h1>
+<p class="sub">Subí una foto y convertila en una imagen 3D para lentes rojo/cian.
+Todo se procesa en tu navegador — la foto nunca sale de tu dispositivo.</p>
+
+<div class="card">
+  <div id="drop"><b>Arrastrá tu foto acá</b><br>o hacé click para elegirla</div>
+  <input type="file" id="file" accept="image/*" hidden>
+
+  <div class="row">
+    <button id="go" disabled>Generar 3D</button>
+    <button id="dl" class="sec" disabled>Descargar PNG</button>
+    <div id="bar"><div></div></div>
+    <span id="status"></span>
+  </div>
+
+  <div class="sliders" id="sliders">
+    <label class="sl">Profundidad <input id="strength" type="range" min="0" max="100" value="35"><output id="ostrength">35%</output></label>
+    <label class="sl">Convergencia <input id="conv" type="range" min="0" max="100" value="50"><output id="oconv">50</output></label>
+    <label class="sl">Suavizado <input id="smooth" type="range" min="0" max="100" value="50"><output id="osmooth">50</output></label>
+    <div class="hint">Profundidad = separación entre los dos ojos. Convergencia = qué plano queda "en la pantalla" (los objetos más cercanos salen hacia vos). Suavizado corrige bordes dentados.</div>
+  </div>
+
+  <canvas id="out"></canvas>
+  <div class="hint" id="glasses" style="display:none">Mirala con lentes rojo/cian (rojo en el ojo izquierdo).</div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
